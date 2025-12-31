@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Interview Scheduler</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;
+font-family:'Segoe UI',sans-serif;
+background:radial-gradient(circle at bottom,#ff3d00,#0b0f14 65%);
+color:#fff;
+overflow-x:hidden
+}
+
+.flames{
+position:fixed;
+bottom:0;
+width:100%;
+height:200px;
+background:radial-gradient(circle at center,#ff9100,#ff1744,#000);
+filter:blur(30px);
+animation:flameMove 2s infinite alternate;
+z-index:-1
+}
+
+@keyframes flameMove{
+from{transform:translateY(0)}
+to{transform:translateY(-40px)}
+}
+
+.launch-overlay{
+position:fixed;
+inset:0;
+background:#000;
+display:flex;
+justify-content:center;
+align-items:center;
+z-index:9999;
+animation:fadeOut 3.2s forwards 2.8s
+}
+
+.rocket{
+width:220px;
+height:220px;
+border-radius:50%;
+background:radial-gradient(circle,#fff,#aaa);
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:120px;
+position:relative;
+animation:launch 3s ease-in forwards
+}
+
+.fire{
+position:absolute;
+bottom:-120px;
+width:120px;
+height:120px;
+background:radial-gradient(circle,#fff176,#ff5722,#b71c1c);
+border-radius:50%;
+filter:blur(6px);
+animation:fire 0.15s infinite alternate
+}
+
+header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:18px 30px;
+background:rgba(255,255,255,0.08);
+backdrop-filter:blur(10px)
+}
+
+.user-box{
+display:flex;
+align-items:center;
+gap:12px;
+font-weight:600
+}
+
+.avatar{
+width:42px;
+height:42px;
+border-radius:50%;
+background:linear-gradient(45deg,#ff9100,#ff1744);
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:900
+}
+
+.logout{
+cursor:pointer;
+padding:6px 14px;
+border-radius:20px;
+background:linear-gradient(45deg,#ff5252,#ff1744);
+font-size:13px
+}
+
+.container{
+max-width:950px;
+margin:30px auto;
+padding:10px
+}
+
+.auth-box{
+background:rgba(255,255,255,0.15);
+padding:24px;
+border-radius:16px;
+margin-bottom:30px;
+box-shadow:0 15px 40px rgba(0,0,0,.4)
+}
+
+.auth-box input{
+width:100%;
+padding:12px;
+margin-top:12px;
+border:none;
+border-radius:10px
+}
+
+.auth-box button{
+margin-top:14px;
+width:100%;
+padding:12px;
+border:none;
+border-radius:25px;
+font-weight:700;
+background:linear-gradient(45deg,#2979ff,#00b0ff);
+color:#fff;
+cursor:pointer
+}
+
+.slot{
+background:rgba(255,255,255,0.15);
+border-radius:18px;
+padding:20px;
+margin-bottom:18px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+box-shadow:0 12px 35px rgba(0,0,0,.4)
+}
+
+.slot.booked{opacity:.45;text-decoration:line-through}
+
+button{
+border:none;
+padding:10px 18px;
+border-radius:25px;
+font-weight:700;
+cursor:pointer
+}
+
+.book-btn{background:linear-gradient(45deg,#00e676,#1de9b6);color:#000}
+.update-btn{background:linear-gradient(45deg,#ff9100,#ff6d00);margin-left:10px;color:#000}
+button:disabled{opacity:.4;cursor:not-allowed}
+
+.load-btn{
+width:100%;
+margin-top:25px;
+padding:15px;
+border-radius:30px;
+font-size:16px;
+font-weight:700;
+background:linear-gradient(45deg,#7c4dff,#651fff);
+color:#fff
+}
+
+.modal{
+position:fixed;
+inset:0;
+display:none;
+justify-content:center;
+align-items:center;
+background:rgba(0,0,0,.7)
+}
+
+.modal-content{
+background:#fff;
+color:#000;
+padding:26px;
+border-radius:16px;
+width:320px
+}
+
+.confetti{
+position:fixed;
+width:10px;
+height:10px;
+animation:explode 1.2s ease forwards
+}
+
+@keyframes explode{
+to{transform:translateY(-260px) rotate(720deg);opacity:0}
+}
+
+@keyframes launch{
+0%{transform:translateY(200px)}
+100%{transform:translateY(-140vh)}
+}
+
+@keyframes fire{
+from{transform:scale(1)}
+to{transform:scale(1.7)}
+}
+
+@keyframes fadeOut{
+to{opacity:0;visibility:hidden}
+}
+</style>
+</head>
+
+<body>
+
+<div class="launch-overlay">
+<div class="rocket">🚀<div class="fire"></div></div>
+</div>
+
+<div class="flames"></div>
+
+<header>
+<h2>Automatic Interview Scheduling</h2>
+<div class="user-box" id="userBox"></div>
+</header>
+
+<div class="container">
+
+<div class="auth-box" id="authBox">
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<button onclick="signup()">Signup</button>
+<button onclick="login()">Login</button>
+</div>
+
+<div id="slots"></div>
+<button class="load-btn" onclick="loadSlots()">Load More Slots</button>
+</div>
+
+<div class="modal" id="modal">
+<div class="modal-content">
+<input type="datetime-local" id="newTime">
+<br><br>
+<button onclick="confirmUpdate()">Update</button>
+<button onclick="closeModal()">Cancel</button>
+</div>
+</div>
+
+<script>
+let cursor="2025-01-01T00:00"
+let updateId=null
+const slotsEl=document.getElementById("slots")
+const authBox=document.getElementById("authBox")
+const userBox=document.getElementById("userBox")
+
+if(localStorage.getItem("user")){
+const u=localStorage.getItem("user")
+userBox.innerHTML=`<div class="avatar">${u[0].toUpperCase()}</div>${u}<div class="logout" onclick="logout()">Logout</div>`
+authBox.style.display="none"
+}
+
+function logout(){
+localStorage.removeItem("user")
+location.reload()
+}
+
+function signup(){
+fetch("/api/auth/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email.value,password:password.value})})
+.then(()=>alert("Signup successful"))
+}
+
+function login(){
+fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email.value,password:password.value})})
+.then(r=>{if(!r.ok)throw"";localStorage.setItem("user",email.value);location.reload()})
+.catch(()=>alert("Invalid credentials"))
+}
+
+function loadSlots(){
+fetch(`/api/slots?cursor=${cursor}`)
+.then(r=>r.json())
+.then(data=>{
+data.forEach(s=>{
+const d=document.createElement("div")
+d.className="slot "+(s.booked?"booked":"")
+d.innerHTML=`
+<div>${new Date(s.slotTime).toLocaleString()}</div>
+<div>
+<button class="book-btn" onclick="book(${s.slotId})" ${s.booked?"disabled":""}>Book</button>
+<button class="update-btn" onclick="openModal(${s.slotId})" ${s.booked?"disabled":""}>Update</button>
+</div>`
+slotsEl.appendChild(d)
+cursor=s.slotTime
+})
+})
+}
+
+function book(id){
+fetch(`/api/slots/${id}/book`,{method:"POST"})
+.then(r=>{if(!r.ok)throw"";boom();setTimeout(()=>location.reload(),900)})
+.catch(()=>alert("Login required or booking failed"))
+}
+
+function boom(){
+for(let i=0;i<60;i++){
+const c=document.createElement("div")
+c.className="confetti"
+c.style.left=Math.random()*innerWidth+"px"
+c.style.top=innerHeight+"px"
+c.style.background=`hsl(${Math.random()*360},100%,50%)`
+document.body.appendChild(c)
+setTimeout(()=>c.remove(),1200)
+}
+}
+
+function openModal(id){updateId=id;modal.style.display="flex"}
+function closeModal(){updateId=null;modal.style.display="none"}
+
+function confirmUpdate(){
+const t=newTime.value
+if(!t)return
+fetch(`/api/slots/${updateId}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({slotTime:t+":00"})})
+.then(()=>{closeModal();location.reload()})
+}
+
+loadSlots()
+</script>
+
+</body>
+</html>
